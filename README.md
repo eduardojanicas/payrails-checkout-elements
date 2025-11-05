@@ -6,6 +6,7 @@
 > This repository is intentionally simplified for documentation & onboarding. It is NOT production ready. Each file highlights the core integration steps with inline `STEP` markers.
 
 ## Quick Start
+![Checkout Demo Screenshot](./public/screenshot.png)
 
 Prerequisites: Node 18+, a Payrails workspace, and API credentials.
 
