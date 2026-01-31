@@ -24,7 +24,7 @@ interface PaymentAndShippingProps {
 }
 
 export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products, currency = 'EUR', holderReference }) => {
-    // STEP 1: User selects a method (this flips `enabled` in the hook)
+    // User selects a method (this flips `enabled` in the hook)
     const [paymentMethod, setPaymentMethod] = useState<('card' | 'pix' | 'upi')>('card')
     const paymentMethods = [
         { id: 'pm-card', value: 'card' as const, title: 'Credit Card' },
@@ -32,7 +32,7 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
         { id: 'pm-upi', value: 'upi' as const, title: 'UPI' },
     ]
 
-    // STEP 2: Derive subtotal from product list (demo parsing)
+    // Derive subtotal from product list (demo parsing)
     const subtotal = useMemo(
         () =>
             products.reduce((acc, p) => {
@@ -41,11 +41,10 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
         [products]
     )
 
-    const { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef } = usePayrailsElements({
+    const { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, mountPixButtonRef } = usePayrailsElements({
         amount: subtotal,
         currency,
         holderReference,
-        enabled: !!paymentMethod, // defer init until user selects method
         paymentMethod: paymentMethod ?? undefined
     })
 
@@ -72,11 +71,16 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
                         paymentMethod={paymentMethod}
                         onSelect={(val) => setPaymentMethod(val)}
                         status={status}
+                        pixStatus={status}
                         error={error}
                         mountCardFormRef={mountCardFormRef}
+                        mountPixButtonRef={mountPixButtonRef}
                     />
 
-                    <PaymentButton mountRef={mountPaymentButtonRef} />
+                    <div className={paymentMethod !== 'card' ? 'hidden' : ''}>
+                        <PaymentButton mountRef={mountPaymentButtonRef} />
+                    </div>
+                    
                 </div>
             </form>
         </section>

@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server'
  * Simplified: light validation & generic errors. Expand for production.
  */
 export async function POST(req: Request) {
-    // STEP 3 (backend part A): Prepare environment + read credentials
+    // (backend part A): Prepare environment + read credentials
     const baseUrl = process.env.PAYRAILS_BASE_URL || 'https://api.payrails.com'
     const clientId = requiredEnv('PAYRAILS_CLIENT_ID')
     const clientSecret = requiredEnv('PAYRAILS_CLIENT_SECRET')
@@ -80,8 +80,7 @@ export async function POST(req: Request) {
 
     try {
         // Step 1: OAuth token
-    // STEP 3.1: Obtain OAuth access token
-    const tokenRes = await fetch(`${baseUrl}/auth/token/${clientId}`, {
+        const tokenRes = await fetch(`${baseUrl}/auth/token/${clientId}`, {
             method: 'POST',
             headers: { Accept: 'application/json', 'x-api-key': clientSecret },
         })
@@ -89,8 +88,7 @@ export async function POST(req: Request) {
         const { access_token } = await tokenRes.json() as { access_token: string }
 
         // Step 2: Display init
-    // STEP 3.2: Request Payrails client init configuration
-    const initRes = await fetch(`${baseUrl}/merchant/client/init`, {
+        const initRes = await fetch(`${baseUrl}/merchant/client/init`, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${access_token}`,

@@ -1,7 +1,6 @@
 "use client";
-// Checkout (Entry Point)
-// Renders an order summary and the payment section. All Payrails logic lives
-// in the PaymentAndShipping component + its hook.
+// (Entry Point)
+// The payment section. All Payrails logic lives in the PaymentAndShipping component + its hook.
 
 import '@payrails/web-sdk/payrails-styles.css'
 import PaymentAndShipping from './components/PaymentAndShipping'

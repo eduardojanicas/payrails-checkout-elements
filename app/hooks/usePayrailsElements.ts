@@ -22,7 +22,6 @@ export interface UsePayrailsElementsOptions {
     workflowCode?: string   // Workflow to execute (default 'payment-acceptance')
     workspaceId?: string    // Optional override (normally handled server-side)
     holderReference?: string // Merchant-side customer identifier
-    enabled?: boolean       // Defer initialization until true (e.g. after user picks a method)
     paymentMethod?: 'card' | 'pix' | 'upi' // Used to conditionally mount elements
 }
 
@@ -41,6 +40,8 @@ interface UsePayrailsElementsReturn {
     mountGooglePayButtonRef: (node: HTMLDivElement | null) => void
     /** Attach to an empty div where the PayPal Button should mount */
     mountPayPalButtonRef: (node: HTMLDivElement | null) => void
+    /** Attach to an empty div where the Pix Button should mount */
+    mountPixButtonRef: (node: HTMLDivElement | null) => void
     /** Workflow execution identifier (best-effort extraction from init payload) */
     executionId: string | null
 }
@@ -49,7 +50,7 @@ interface UsePayrailsElementsReturn {
 const DEFAULT_WORKSPACE_ID = process.env.PAYRAILS_WORKSPACE_ID
 
 export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePayrailsElementsReturn {
-    const { amount, currency, workflowCode = 'payment-acceptance', workspaceId = DEFAULT_WORKSPACE_ID, holderReference = 'holder-abc', enabled = true, paymentMethod } = options
+    const { amount, currency, workflowCode = 'payment-acceptance', workspaceId = DEFAULT_WORKSPACE_ID, holderReference = 'holder-abc', paymentMethod } = options
 
     const [status, setStatus] = useState<PayrailsElementsStatus>('idle')
     const [error, setError] = useState<string | null>(null)
@@ -63,6 +64,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     const applePayButtonContainerRef = useRef<HTMLDivElement | null>(null)
     const googlePayButtonContainerRef = useRef<HTMLDivElement | null>(null)
     const payPalButtonContainerRef = useRef<HTMLDivElement | null>(null)
+    const pixButtonContainerRef = useRef<HTMLDivElement | null>(null)
 
     // Deterministic IDs allow mounting via CSS selector (simpler for examples).
     const CARD_FORM_ID = 'card-form-container'
@@ -70,9 +72,21 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     const APPLE_PAY_BUTTON_ID = 'apple-pay-button-container'
     const GOOGLE_PAY_BUTTON_ID = 'google-pay-button-container'
     const PAYPAL_BUTTON_ID = 'paypal-button-container'
+    const PIX_BUTTON_ID = 'pix-button-container'
 
     const [executionId, setExecutionId] = useState<string | null>(null)
     const initializedRef = useRef<boolean>(false)
+
+    // Helpers ---------------------------------------------------------------
+
+    type PayrailsClient = {
+        cardForm?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+        paymentButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+        applePayButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+        googlePayButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+        paypalButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+        genericRedirectButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+    }
 
     const mountCardFormRef = useCallback((node: HTMLDivElement | null) => {
         cardFormContainerRef.current = node
@@ -94,15 +108,9 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         payPalButtonContainerRef.current = node
     }, [])
 
-    // Helpers ---------------------------------------------------------------
-
-    type PayrailsClient = {
-        cardForm?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
-        paymentButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
-        applePayButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
-        googlePayButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
-        paypalButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
-    }
+    const mountPixButtonRef = useCallback((node: HTMLDivElement | null) => {
+        pixButtonContainerRef.current = node
+    }, [])
 
     // Stable merchant reference (initialized once). Use lazy initializer to avoid purity lint.
     const merchantReferenceRef = useRef<string>('')
@@ -114,7 +122,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     }, [])
 
     const fetchInitPayload = useCallback(async (): Promise<Parameters<typeof Payrails.init>[0]> => {
-        // STEP 3.1: Request init payload from backend
+        // Request init payload from backend
         const resp = await fetch('/api/init', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -127,7 +135,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     }, [amount, currency, workflowCode, holderReference, workspaceId])
 
     const initSdk = useCallback((raw: Parameters<typeof Payrails.init>[0]): PayrailsClient => {
-        // STEP 3.2: Initialize SDK
+        // Initialize SDK
         return Payrails.init(raw, {
             redirectFor3DS: false,
             events: {
@@ -146,11 +154,10 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     }, [])
 
     const mountCardFormIfNeeded = useCallback((client: PayrailsClient) => {
-        // STEP 3.3: Mount card form (only for card payment method)
+        // Mount card form (only for card payment method)
         if (paymentMethod !== 'card' || !cardFormContainerRef.current || !client.cardForm) return
         const cardForm = client.cardForm({
             showSingleExpiryDateField: true,
-            // showPaymentMethodLogo: true,
             showStoreInstrumentCheckbox: true,
             styles: {
                 storeInstrumentCheckbox: {
@@ -306,12 +313,15 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     }, [paymentMethod])
 
     const mountApplePayButton = useCallback((client: PayrailsClient) => {
-        // STEP 3.4a: Mount Apple Pay button for express checkout
-        // TODO: Add availability check using payrails.isApplePayAvailable() to conditionally render
+        // Mount Apple Pay button for express checkout
+        // OPTIONAL: Add availability check using payrails.isApplePayAvailable() to conditionally render
         if (!applePayButtonContainerRef.current || !client.applePayButton) return
         const applePayButton = client.applePayButton({
-            style: 'black',
-            type: 'plain',
+            styles: {
+                style: 'white',
+                type: 'plain',
+
+            },
             events: {
                 onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
                 onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
@@ -321,8 +331,8 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     }, [])
 
     const mountGooglePayButton = useCallback((client: PayrailsClient) => {
-        // STEP 3.4b: Mount Google Pay button for express checkout
-        // TODO: Add availability check using payrails.isGooglePayAvailable() to conditionally render
+        // Mount Google Pay button for express checkout
+        // OPTIONAL: Add availability check using payrails.isGooglePayAvailable() to conditionally render
         if (!googlePayButtonContainerRef.current || !client.googlePayButton) return
         const googlePayButton = client.googlePayButton({
             environment: 'TEST',
@@ -339,8 +349,8 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     }, [])
 
     const mountPayPalButton = useCallback((client: PayrailsClient) => {
-        // STEP 3.4c: Mount PayPal button for express checkout
-        // TODO: Add availability check using onPaypalAvailable event to conditionally render
+        // Mount PayPal button for express checkout
+        // OPTIONAL: Add availability check using onPaypalAvailable event to conditionally render
         if (!payPalButtonContainerRef.current || !client.paypalButton) return
         const paypalButton = client.paypalButton({
             styles: {
@@ -357,7 +367,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     }, [])
 
     const mountPaymentButton = useCallback((client: PayrailsClient) => {
-        // STEP 3.4d: Mount payment button
+        // Mount payment button
         if (!client.paymentButton) return
         const paymentButton = client.paymentButton({
             styles: {
@@ -390,10 +400,59 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         }, 0)
     }, [])
 
-    // STEP 3: Lazy initialize Payrails once a payment method is chosen and container exists
+    const mountPixButton = useCallback((client: PayrailsClient) => {
+        // Mount Pix button using generic redirect element (only for pix payment method)
+        if (!client.genericRedirectButton) return
+        const pixButton = client.genericRedirectButton({
+            paymentMethod: {
+                paymentMethodCode: 'pix',
+            },
+            openInNewTab: false,
+            styles: {
+                base: {
+                    width: '100%',
+                    backgroundColor: '#1447e6',
+                    color: '#fff',
+                    borderRadius: '24px',
+                    padding: '8px 24px',
+                    fontSize: '14px',
+                },
+            },
+            translations: {
+                label: 'Pay with Pix',
+            },
+            events: {
+                onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
+                onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
+            },
+        })
+        pixButton.mount(`#${PIX_BUTTON_ID}`)
+    }, [])
+
+    // Inject CSS custom properties for button heights
+    useEffect(() => {
+        const styleId = 'payrails-button-height-styles'
+        if (document.getElementById(styleId)) return
+
+        const styleEl = document.createElement('style')
+        styleEl.id = styleId
+        styleEl.textContent = `
+            :root {
+                --apple-pay-button-height: 42px;
+            }
+        `.trim()
+        document.head.appendChild(styleEl)
+
+        return () => {
+            const el = document.getElementById(styleId)
+            if (el) el.remove()
+        }
+    }, [])
+
+    // Lazy initialize Payrails once a payment method is chosen and container exists
     useEffect(() => {
         let cancelled = false
-        const readyToInit = enabled && paymentButtonContainerRef.current && !initializedRef.current
+        const readyToInit = paymentButtonContainerRef.current && !initializedRef.current
         if (!readyToInit) return
         const run = async () => {
             setStatus('loading')
@@ -406,6 +465,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                 mountGooglePayButton(client)
                 mountPayPalButton(client)
                 mountPaymentButton(client)
+                mountPixButton(client)
                 if (!cancelled) {
                     initializedRef.current = true
                     setStatus('ready')
@@ -421,7 +481,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         return () => {
             cancelled = true
         }
-    }, [amount, currency, workflowCode, holderReference, workspaceId, enabled, paymentMethod, fetchInitPayload, initSdk, mountCardFormIfNeeded, mountApplePayButton, mountGooglePayButton, mountPayPalButton, mountPaymentButton])
+    }, [amount, currency, workflowCode, holderReference, workspaceId, paymentMethod, fetchInitPayload, initSdk, mountCardFormIfNeeded, mountApplePayButton, mountGooglePayButton, mountPayPalButton, mountPaymentButton, mountPixButton])
 
-    return { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, executionId }
+    return { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, mountPixButtonRef, executionId }
 }

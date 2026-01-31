@@ -14,7 +14,7 @@ interface PaymentButtonProps {
 export const PaymentButton: React.FC<PaymentButtonProps> = ({ mountRef }) => {
   return (
     <div className="mt-2 flex justify-end">
-      {/* STEP 1e: Payment button container component */}
+      {/* Payment button container component */}
       <div
         id="payment-button-container"
         ref={mountRef}

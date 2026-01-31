@@ -5,9 +5,6 @@
  * Wraps express checkout buttons (Apple Pay, Google Pay, PayPal) from Payrails.
  * Positioned above the regular payment method selector for quick checkout options.
  *
- * TODO: Add availability checks using payrails.isApplePayAvailable(),
- * isGooglePayAvailable(), and onPaypalAvailable to conditionally render
- * based on device/browser support and configuration.
  */
 import React from 'react'
 import Spinner from './Spinner'
@@ -32,7 +29,7 @@ export const ExpressCheckoutButtonContainer: React.FC<ExpressCheckoutButtonConta
   mountPayPalRef,
 }) => {
   return (
-    <div className="m-1">
+    <div className="m-1 mt-4">
       {/* Loading/Error states */}
       {status === 'loading' && <Spinner label="Loading express checkout" />}
       {status === 'idle' && <Spinner label="Preparing express checkout" size="sm" />}
@@ -43,7 +40,7 @@ export const ExpressCheckoutButtonContainer: React.FC<ExpressCheckoutButtonConta
       )}
 
       {/* Express checkout buttons grid */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 mt-8">
         {/* Apple Pay Button Container */}
         <div
           id="apple-pay-button-container"

@@ -26,7 +26,6 @@ export const CardPaymentContainer: React.FC<CardPaymentContainerProps> = ({ stat
       className="rounded-md"
       aria-live="polite"
     >
-      {/* STEP 1b: Card payment container component (renders only when selected) */}
       {status === 'loading' && <Spinner label="Loading payment" />}
       {status === 'idle' && <Spinner label="Preparing SDK" size="sm" />}
       {status === 'error' && (
