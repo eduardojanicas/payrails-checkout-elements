@@ -8,7 +8,7 @@
 import React from 'react'
 import PaymentMethodSelector from './PaymentMethodSelector'
 import CardPaymentContainer from './CardPaymentContainer'
-import PayPalPlaceholder from './PayPalPlaceholder'
+import { Placeholder } from './Placeholder'
 
 import type { CardContainerStatus } from './CardPaymentContainer'
 import type { PaymentMethodOption } from './PaymentMethodSelector'
@@ -38,7 +38,7 @@ export const PaymentDetails = <M extends string>({
         {paymentMethod === 'card' && (
           <CardPaymentContainer status={status} error={error} mountRef={mountCardFormRef} />
         )}
-        {paymentMethod === 'paypal' && <PayPalPlaceholder />}
+        {(paymentMethod === 'pix' || paymentMethod === 'upi') && <Placeholder />}
       </div>
     </div>
   )

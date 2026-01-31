@@ -6,8 +6,7 @@
  *  1. Fetch an init payload from /api/init (server performs OAuth + Payrails init).
  *  2. Initialize the Payrails Web SDK.
  *  3. Mount the Card Form (when paymentMethod === 'card').
- *  4. Mount a Payment Button that optionally performs a lookup enrichment before authorization.
- *  5. Redirect to simple success / failure pages.
+ *  4. Redirect to simple success / failure pages.
  *
  * Kept intentionally small: no advanced retries, analytics, styling config, or edge‑case handling.
  * Feel free to fork and enhance for production.

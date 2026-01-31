@@ -10,8 +10,9 @@
  */
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default function OrderFailurePage() {
+function FailureContent() {
   const params = useSearchParams()
   const merchantRef = params.get('ref') || 'unknown-order'
   const reason = params.get('reason') || 'Authorization declined.'
@@ -56,9 +57,28 @@ export default function OrderFailurePage() {
           </Link>
         </div>
         <p className="mt-8 text-xs text-gray-400 text-center">
-          (Tutorial only – investigate declined payments server-side for real causes.)
+          (Tutorial only: Investigate declined payments server-side for real causes.)
         </p>
       </div>
     </div>
+  )
+}
+
+export default function OrderFailurePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex flex-col">
+          <div className="relative mx-auto max-w-3xl w-full px-6 py-16 flex-1 flex flex-col justify-center">
+            <div className="mb-8 text-center">
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900">Payment failed</h1>
+              <p className="mt-4 text-sm text-gray-600">Loading details…</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <FailureContent />
+    </Suspense>
   )
 }

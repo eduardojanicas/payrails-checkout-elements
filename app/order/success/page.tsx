@@ -15,12 +15,12 @@
  */
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default function OrderSuccessPage() {
+function SuccessContent() {
   const params = useSearchParams()
   const router = useRouter()
   const merchantRef = params.get('ref') || 'unknown-order'
-  const paymentId = params.get('pid') || 'n/a'
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -63,5 +63,24 @@ export default function OrderSuccessPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function OrderSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex flex-col">
+          <div className="relative mx-auto max-w-3xl w-full px-6 py-16 flex-1 flex flex-col justify-center">
+            <div className="mb-8 text-center">
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900">Payment successful</h1>
+              <p className="mt-4 text-sm text-gray-600">Loading details…</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <SuccessContent />
+    </Suspense>
   )
 }

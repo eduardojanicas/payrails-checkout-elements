@@ -3,11 +3,9 @@
  * PaymentAndShipping (Getting Started)
  * ---------------------------------------------------------------------------
  * Minimal UI that:
- *  1. Collects basic customer + address data.
- *  2. Lets the user pick a payment method (currently only 'Card' is functional).
- *  3. Derives a total amount (sum of product price strings).
- *  4. Delegates Payrails SDK work to the usePayrailsElements hook.
- *  5. Disables the payment button until form + SDK are both ready.
+ *  1. Lets the user pick a payment method (currently only 'Card' is functional).
+ *  2. Derives a total amount (sum of product prices).
+ *  3. Delegates Payrails SDK work to the usePayrailsElements hook.
  *
  * Omissions: robust validation, localization, tax/shipping calculations, accessibility polish.
  */
@@ -18,15 +16,14 @@ import PaymentDetails from './PaymentDetails'
 import PaymentButton from './PaymentButton'
 
 import { usePayrailsElements } from '../hooks/usePayrailsElements'
-import type { ProductSummaryItem } from './OrderSummary'
 
 interface PaymentAndShippingProps {
-    products: ProductSummaryItem[]
+    products: number[]
     currency?: string // default USD for demo
     holderReference: string
 }
 
-export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products, currency = 'USD', holderReference }) => {
+export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products, currency = 'EUR', holderReference }) => {
     // STEP 1: User selects a method (this flips `enabled` in the hook)
     const [paymentMethod, setPaymentMethod] = useState<('card' | 'pix' | 'upi')>('card')
     const paymentMethods = [
@@ -39,8 +36,7 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
     const subtotal = useMemo(
         () =>
             products.reduce((acc, p) => {
-                const n = parseFloat(p.price.replace(/[^0-9.]/g, ''))
-                return acc + (isNaN(n) ? 0 : n)
+                return acc + (isNaN(p) ? 0 : p)
             }, 0),
         [products]
     )
@@ -56,7 +52,7 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
     return (
         <section
             aria-labelledby="payment-and-shipping-heading"
-            className="py-16 lg:col-start-1 lg:row-start-1 lg:mx-auto lg:w-full lg:max-w-lg lg:pt-0 lg:pb-24"
+            className="bg-gray-950 rounded-2xl p-16 lg:col-start-1 lg:row-start-1 lg:mx-auto lg:w-full lg:max-w-lg lg:pt-0 lg:pb-24"
         >
             <h2 id="payment-and-shipping-heading" className="sr-only">
                 Payment and shipping details
@@ -79,11 +75,6 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
                         error={error}
                         mountCardFormRef={mountCardFormRef}
                     />
-
-                    {/* <AddressFields
-                        value={{ address: form.address, city: form.city, region: form.region, postal: form.postal }}
-                        onChange={(patch) => update(patch)}
-                    /> */}
 
                     <PaymentButton mountRef={mountPaymentButtonRef} />
                 </div>
