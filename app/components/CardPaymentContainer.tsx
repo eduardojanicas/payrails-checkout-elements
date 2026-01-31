@@ -21,7 +21,7 @@ interface CardPaymentContainerProps {
 export const CardPaymentContainer: React.FC<CardPaymentContainerProps> = ({ status, error, mountRef }) => {
   return (
     <div
-      id="card-form-container"
+      id="drop-in-container"
       ref={mountRef}
       className="rounded-md"
       aria-live="polite"

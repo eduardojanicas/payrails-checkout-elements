@@ -22,7 +22,6 @@ export interface UsePayrailsElementsOptions {
     workflowCode?: string   // Workflow to execute (default 'payment-acceptance')
     workspaceId?: string    // Optional override (normally handled server-side)
     holderReference?: string // Merchant-side customer identifier
-    paymentMethod?: 'card' | 'pix' | 'upi' // Used to conditionally mount elements
 }
 
 export type PayrailsElementsStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -31,17 +30,13 @@ interface UsePayrailsElementsReturn {
     status: PayrailsElementsStatus
     error: string | null
     /** Attach to an empty div where the Card Form should mount */
-    mountCardFormRef: (node: HTMLDivElement | null) => void
-    /** Attach to an empty div where the Payment Button should mount */
-    mountPaymentButtonRef: (node: HTMLDivElement | null) => void
+    mountDropInRef: (node: HTMLDivElement | null) => void
     /** Attach to an empty div where the Apple Pay Button should mount */
     mountApplePayButtonRef: (node: HTMLDivElement | null) => void
     /** Attach to an empty div where the Google Pay Button should mount */
     mountGooglePayButtonRef: (node: HTMLDivElement | null) => void
     /** Attach to an empty div where the PayPal Button should mount */
     mountPayPalButtonRef: (node: HTMLDivElement | null) => void
-    /** Attach to an empty div where the Pix Button should mount */
-    mountPixButtonRef: (node: HTMLDivElement | null) => void
     /** Workflow execution identifier (best-effort extraction from init payload) */
     executionId: string | null
 }
@@ -50,7 +45,7 @@ interface UsePayrailsElementsReturn {
 const DEFAULT_WORKSPACE_ID = process.env.PAYRAILS_WORKSPACE_ID
 
 export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePayrailsElementsReturn {
-    const { amount, currency, workflowCode = 'payment-acceptance', workspaceId = DEFAULT_WORKSPACE_ID, holderReference = 'holder-abc', paymentMethod } = options
+    const { amount, currency, workflowCode = 'payment-acceptance', workspaceId = DEFAULT_WORKSPACE_ID, holderReference = 'holder-abc' } = options
 
     const [status, setStatus] = useState<PayrailsElementsStatus>('idle')
     const [error, setError] = useState<string | null>(null)
@@ -59,20 +54,16 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     useEffect(() => { routerRef.current = router }, [router])
 
     // DOM container refs where SDK elements will mount.
-    const cardFormContainerRef = useRef<HTMLDivElement | null>(null)
-    const paymentButtonContainerRef = useRef<HTMLDivElement | null>(null)
+    const dropInContainerRef = useRef<HTMLDivElement | null>(null)
     const applePayButtonContainerRef = useRef<HTMLDivElement | null>(null)
     const googlePayButtonContainerRef = useRef<HTMLDivElement | null>(null)
     const payPalButtonContainerRef = useRef<HTMLDivElement | null>(null)
-    const pixButtonContainerRef = useRef<HTMLDivElement | null>(null)
 
     // Deterministic IDs allow mounting via CSS selector (simpler for examples).
-    const CARD_FORM_ID = 'card-form-container'
-    const PAYMENT_BUTTON_ID = 'payment-button-container'
+    const DROP_IN_ID = 'drop-in-container'
     const APPLE_PAY_BUTTON_ID = 'apple-pay-button-container'
     const GOOGLE_PAY_BUTTON_ID = 'google-pay-button-container'
     const PAYPAL_BUTTON_ID = 'paypal-button-container'
-    const PIX_BUTTON_ID = 'pix-button-container'
 
     const [executionId, setExecutionId] = useState<string | null>(null)
     const initializedRef = useRef<boolean>(false)
@@ -80,20 +71,14 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     // Helpers ---------------------------------------------------------------
 
     type PayrailsClient = {
-        cardForm?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
-        paymentButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+        dropin?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
         applePayButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
         googlePayButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
         paypalButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
-        genericRedirectButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
     }
 
-    const mountCardFormRef = useCallback((node: HTMLDivElement | null) => {
-        cardFormContainerRef.current = node
-    }, [])
-
-    const mountPaymentButtonRef = useCallback((node: HTMLDivElement | null) => {
-        paymentButtonContainerRef.current = node
+    const mountDropInRef = useCallback((node: HTMLDivElement | null) => {
+        dropInContainerRef.current = node
     }, [])
 
     const mountApplePayButtonRef = useCallback((node: HTMLDivElement | null) => {
@@ -106,10 +91,6 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
 
     const mountPayPalButtonRef = useCallback((node: HTMLDivElement | null) => {
         payPalButtonContainerRef.current = node
-    }, [])
-
-    const mountPixButtonRef = useCallback((node: HTMLDivElement | null) => {
-        pixButtonContainerRef.current = node
     }, [])
 
     // Stable merchant reference (initialized once). Use lazy initializer to avoid purity lint.
@@ -153,84 +134,148 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         }) as unknown as PayrailsClient
     }, [])
 
-    const mountCardFormIfNeeded = useCallback((client: PayrailsClient) => {
-        // Mount card form (only for card payment method)
-        if (paymentMethod !== 'card' || !cardFormContainerRef.current || !client.cardForm) return
-        const cardForm = client.cardForm({
-            showSingleExpiryDateField: true,
-            showStoreInstrumentCheckbox: true,
-            styles: {
-                storeInstrumentCheckbox: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginTop: '8px',
-                    color: '#aaaaaa',
+    const mountDropInIfNeeded = useCallback((client: PayrailsClient) => {
+        // Mount drop-in (only for card payment method)
+        if (!dropInContainerRef.current || !client.dropin) return
+        const dropin = client.dropin({
+            paymentMethodsConfiguration: {
+                preselectFirstPaymentOption: true,
+                cards: {
+                    showSingleExpiryDateField: true,
+                    showStoreInstrumentCheckbox: true,
+                    showPaymentMethodLogo: true,
                 },
-                inputFields: {
-                    all: {
-                        base: {
-                            border: '1px solid black',
-                            borderRadius: '5px',
-                            margin: {
-                                top: 5, // jss-default-unit makes this 5px
-                                right: 5,
-                                bottom: 5,
-                                left: 5
+                mercadoPago: { // hpp integration
+                    showPaymentMethodLogo: true,
+                },
+                easypaisa: { // hpp integration
+                    showPaymentMethodLogo: true,
+                },
+                pix: { // hpp integration
+                    showPaymentMethodLogo: true,
+                },
+                fawryPay: { // hpp integration
+                    showPaymentMethodLogo: true,
+                },
+            },
+            styles: {
+                container: {
+                    styles: {
+                        backgroundColor: "#030712",
+                        padding: "0px",
+                        margin: "4px",
+                        border: "none"
+                    },
+                },
+                // Basic styles for each drop-in component wrapper
+                element: {
+                    base: {
+                        backgroundColor: "#030712",
+                        border: "1px solid #303030",
+                        color: "#d1d5db",
+                        borderRadius: "8px",
+                    },
+                    active: {
+                        backgroundColor: "#030712",
+                        border: "1px solid #1447e6",
+                        color: "#d1d5db",
+                    }
+                },
+                cardForm: {
+                    storeInstrumentCheckbox: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginTop: '8px',
+                        color: '#aaaaaa',
+                    },
+                    inputFields: {
+                        all: {
+                            base: {
+                                border: '1px solid black',
+                                borderRadius: '5px',
+                                margin: {
+                                    top: 5, // jss-default-unit makes this 5px
+                                    right: 5,
+                                    bottom: 5,
+                                    left: 5
+                                },
+                                backgroundColor: "#303030",
                             },
-                            backgroundColor: "#303030",
+                            focus: {
+                                backgroundColor: "#040717",
+                                borderColor: "#1447e6",
+                                color: "white",
+                            },
+                            invalid: {
+                                backgroundColor: "#040717",
+                                borderColor: "#c10007",
+                                color: "white",
+                            },
+                            complete: {
+                                backgroundColor: "#040717",
+                                borderColor: "#008236",
+                                color: "white",
+                            }
                         },
-                        focus: {
-                            backgroundColor: "#040717",
-                            borderColor: "#1447e6",
-                            color: "white",
+                        CARD_NUMBER: {
+                            base: {
+                                maxWidth: "calc(100% - 0.5rem)",
+                            },
                         },
-                        invalid: {
-                            backgroundColor: "#040717",
-                            borderColor: "#c10007",
-                            color: "white",
+                        EXPIRATION_DATE: {
+                            base: {
+                                maxWidth: "calc(100% - 0.5rem)",
+                            },
+                            cardIcon: {
+                                display: 'none',
+                            },
                         },
-                        complete: {
-                            backgroundColor: "#040717",
-                            borderColor: "#008236",
-                            color: "white",
-                        }
+                        CVV: {
+                            base: {
+                                maxWidth: "calc(100% - 0.5rem)",
+                            },
+                            cardIcon: {
+                                display: 'none',
+                            },
+                        },
                     },
-                    CARD_NUMBER: {
-                        base: {
-                            maxWidth: "calc(100% - 0.5rem)",
-                        },
+                },
+                cardPaymentButton: {
+                    base: {
+                        width: 'full',
+                        backgroundColor: '#1447e6',
+                        color: '#fff',
+                        borderRadius: '24px',
+                        padding: '8px 24px',
                     },
-                    EXPIRATION_DATE: {
-                        base: {
-                            maxWidth: "calc(100% - 0.5rem)",
-                        },
-                        cardIcon: {
-                            display: 'none',
-                        },
-                    },
-                    CVV: {
-                        base: {
-                            maxWidth: "calc(100% - 0.5rem)",
-                        },
-                        cardIcon: {
-                            display: 'none',
-                        },
-                    },
+                    disabled: {
+                        backgroundColor: '#1447e6',
+                        border: 'none',
+                        opacity: '0.5',
+                    }
                 },
             },
             translations: {
-                labels: {
-                    storeInstrument: "Save card for faster checkout",
+                cardForm: {
+                    labels: {
+                        storeInstrument: "Save card for faster checkout",
+                    }
+                },
+                mercadoPago: {
+                    label: "Mercado Pago",
+                    button: {
+                        label: 'Pay with Mercado Pago',
+                    }
                 },
             },
         })
-        cardForm.mount(`#${CARD_FORM_ID}`)
+        dropin.mount(`#${DROP_IN_ID}`)
 
         // Make the "store instrument" checkbox look like a toggle.
         // Limitation: Payrails applies `styles.storeInstrumentCheckbox` only to the wrapper element,
         // so we inject a scoped <style> tag here to style the nested input/label.
         setTimeout(() => {
-            const container = cardFormContainerRef.current
+            const container = dropInContainerRef.current
             if (!container) return
 
             const styleId = 'payrails-toggle-styles'
@@ -238,7 +283,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                 const styleEl = document.createElement('style')
                 styleEl.id = styleId
                 styleEl.textContent = `
-                #${CARD_FORM_ID} label.payrails-toggle {
+                #${DROP_IN_ID} label.payrails-toggle {
                     position: relative;
                     display: inline-flex;
                     align-items: center;
@@ -251,7 +296,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                     color: inherit;
                 }
 
-                #${CARD_FORM_ID} label.payrails-toggle > input.payrails-store-instrument-checkbox {
+                #${DROP_IN_ID} label.payrails-toggle > input.payrails-store-instrument-checkbox {
                     position: absolute;
                     opacity: 0;
                     width: 1px;
@@ -259,7 +304,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                     pointer-events: none;
                 }
 
-                #${CARD_FORM_ID} label.payrails-toggle::before {
+                #${DROP_IN_ID} label.payrails-toggle::before {
                     content: "";
                     width: 40px;
                     height: 22px;
@@ -270,7 +315,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                     flex: none;
                 }
 
-                #${CARD_FORM_ID} label.payrails-toggle::after {
+                #${DROP_IN_ID} label.payrails-toggle::after {
                     content: "";
                     position: absolute;
                     left: 2px;
@@ -284,12 +329,12 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                     transition: transform 150ms ease;
                 }
 
-                #${CARD_FORM_ID} label.payrails-toggle[data-checked="true"]::before {
+                #${DROP_IN_ID} label.payrails-toggle[data-checked="true"]::before {
                     background: #1447e6;
                     border-color: #1447e6;
                 }
 
-                #${CARD_FORM_ID} label.payrails-toggle[data-checked="true"]::after {
+                #${DROP_IN_ID} label.payrails-toggle[data-checked="true"]::after {
                     transform: translate(18px, -50%);
                 }
 
@@ -310,7 +355,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
             sync()
             input.addEventListener('change', sync)
         }, 0)
-    }, [paymentMethod])
+    }, [])
 
     const mountApplePayButton = useCallback((client: PayrailsClient) => {
         // Mount Apple Pay button for express checkout
@@ -366,69 +411,6 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         paypalButton.mount(`#${PAYPAL_BUTTON_ID}`)
     }, [])
 
-    const mountPaymentButton = useCallback((client: PayrailsClient) => {
-        // Mount payment button
-        if (!client.paymentButton) return
-        const paymentButton = client.paymentButton({
-            styles: {
-                base: {
-                    width: 'full',
-                    backgroundColor: '#1447e6',
-                    color: '#fff',
-                    borderRadius: '24px',
-                    padding: '8px 24px',
-                },
-                disabled: {
-                    backgroundColor: '#1447e6',
-                    border: 'none',
-                    opacity: '0.5',
-                }
-            },
-            translations: { label: 'Pay' },
-            events: {
-                onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
-                onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
-            },
-        })
-        paymentButton.mount(`#${PAYMENT_BUTTON_ID}`)
-        // Light post-mount styling to align with Tailwind examples.
-        setTimeout(() => {
-            const btn = paymentButtonContainerRef.current?.querySelector('button')
-            if (btn) {
-                (btn as HTMLButtonElement).className = 'w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50 focus:outline-hidden disabled:opacity-50 disabled:cursor-not-allowed'
-            }
-        }, 0)
-    }, [])
-
-    const mountPixButton = useCallback((client: PayrailsClient) => {
-        // Mount Pix button using generic redirect element (only for pix payment method)
-        if (!client.genericRedirectButton) return
-        const pixButton = client.genericRedirectButton({
-            paymentMethod: {
-                paymentMethodCode: 'pix',
-            },
-            openInNewTab: false,
-            styles: {
-                base: {
-                    width: '100%',
-                    backgroundColor: '#1447e6',
-                    color: '#fff',
-                    borderRadius: '24px',
-                    padding: '8px 24px',
-                    fontSize: '14px',
-                },
-            },
-            translations: {
-                label: 'Pay with Pix',
-            },
-            events: {
-                onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
-                onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
-            },
-        })
-        pixButton.mount(`#${PIX_BUTTON_ID}`)
-    }, [])
-
     // Inject CSS custom properties for button heights
     useEffect(() => {
         const styleId = 'payrails-button-height-styles'
@@ -452,7 +434,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     // Lazy initialize Payrails once a payment method is chosen and container exists
     useEffect(() => {
         let cancelled = false
-        const readyToInit = paymentButtonContainerRef.current && !initializedRef.current
+        const readyToInit = !initializedRef.current
         if (!readyToInit) return
         const run = async () => {
             setStatus('loading')
@@ -460,12 +442,10 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
             try {
                 const raw = await fetchInitPayload()
                 const client = initSdk(raw)
-                mountCardFormIfNeeded(client)
+                mountDropInIfNeeded(client)
                 mountApplePayButton(client)
                 mountGooglePayButton(client)
                 mountPayPalButton(client)
-                mountPaymentButton(client)
-                mountPixButton(client)
                 if (!cancelled) {
                     initializedRef.current = true
                     setStatus('ready')
@@ -481,7 +461,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         return () => {
             cancelled = true
         }
-    }, [amount, currency, workflowCode, holderReference, workspaceId, paymentMethod, fetchInitPayload, initSdk, mountCardFormIfNeeded, mountApplePayButton, mountGooglePayButton, mountPayPalButton, mountPaymentButton, mountPixButton])
+    }, [amount, currency, workflowCode, holderReference, workspaceId, fetchInitPayload, initSdk, mountDropInIfNeeded, mountApplePayButton, mountGooglePayButton, mountPayPalButton])
 
-    return { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, mountPixButtonRef, executionId }
+    return { status, error, mountDropInRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, executionId }
 }

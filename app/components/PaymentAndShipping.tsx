@@ -13,7 +13,6 @@ import React, { useMemo, useState } from 'react'
 
 import ExpressCheckoutButtonContainer from './ExpressCheckoutButtonContainer'
 import PaymentDetails from './PaymentDetails'
-import PaymentButton from './PaymentButton'
 
 import { usePayrailsElements } from '../hooks/usePayrailsElements'
 
@@ -24,14 +23,6 @@ interface PaymentAndShippingProps {
 }
 
 export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products, currency = 'EUR', holderReference }) => {
-    // User selects a method (this flips `enabled` in the hook)
-    const [paymentMethod, setPaymentMethod] = useState<('card' | 'pix' | 'upi')>('card')
-    const paymentMethods = [
-        { id: 'pm-card', value: 'card' as const, title: 'Credit Card' },
-        { id: 'pm-pix', value: 'pix' as const, title: 'Pix' },
-        { id: 'pm-upi', value: 'upi' as const, title: 'UPI' },
-    ]
-
     // Derive subtotal from product list (demo parsing)
     const subtotal = useMemo(
         () =>
@@ -41,17 +32,16 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
         [products]
     )
 
-    const { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, mountPixButtonRef } = usePayrailsElements({
+    const { status, error, mountDropInRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef } = usePayrailsElements({
         amount: subtotal,
         currency,
-        holderReference,
-        paymentMethod: paymentMethod ?? undefined
+        holderReference
     })
 
     return (
         <section
             aria-labelledby="payment-and-shipping-heading"
-            className="bg-gray-950 rounded-2xl p-16 lg:col-start-1 lg:row-start-1 lg:mx-auto lg:w-full lg:max-w-lg lg:pt-0 lg:pb-24"
+            className="bg-gray-950 rounded-2xl p-16 lg:col-start-1 lg:row-start-1 lg:mx-auto lg:w-full lg:max-w-lg lg:pt-0 mb-16"
         >
             <h2 id="payment-and-shipping-heading" className="sr-only">
                 Payment and shipping details
@@ -67,19 +57,10 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
                     />
 
                     <PaymentDetails
-                        paymentMethods={paymentMethods}
-                        paymentMethod={paymentMethod}
-                        onSelect={(val) => setPaymentMethod(val)}
                         status={status}
-                        pixStatus={status}
                         error={error}
-                        mountCardFormRef={mountCardFormRef}
-                        mountPixButtonRef={mountPixButtonRef}
+                        mountDropInRef={mountDropInRef}
                     />
-
-                    <div className={paymentMethod !== 'card' ? 'hidden' : ''}>
-                        <PaymentButton mountRef={mountPaymentButtonRef} />
-                    </div>
                     
                 </div>
             </form>

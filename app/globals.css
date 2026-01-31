@@ -24,3 +24,52 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Payrails: make generic buttons match Card Payment button styling */
+.payrails-dropin-item button.payrails-generic-button {
+  width: 100% !important;
+  background-color: #1447e6 !important;
+  color: #fff !important;
+  border-radius: 24px !important;
+  padding: 8px 24px !important;
+  border: none !important;
+  cursor: pointer !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  font: inherit !important;
+  line-height: inherit !important;
+  text-align: center !important;
+  text-transform: none !important;
+}
+
+button.payrails-generic-button:disabled,
+button.payrails-generic-button[disabled],
+button.payrails-generic-button[aria-disabled="true"],
+button.payrails-generic-button.disabled {
+  background-color: #1447e6 !important;
+  border: none !important;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Payrails: hide internal radio controls (select via label/container styling instead) */
+.payrails-dropin-item input[type="radio"],
+.payrails-dropin-item input[type="radio"].payrails-payment-method-selector {
+  /* Visually hidden, but still focusable/operable via associated labels */
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+
+  /* Neutralize any custom radio styling */
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
