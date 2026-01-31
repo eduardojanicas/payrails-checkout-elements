@@ -16,8 +16,8 @@ export default function Checkout() {
   return (
     <div className="min-h-screen bg-gray-950 bg-[url('/payrails-gradient.png')] bg-cover bg-center bg-no-repeat">
 
-      <header className="relative mx-auto max-w-7xl bg-blue-950 py-6 lg:grid lg:grid-cols-2 lg:gap-x-16 lg:bg-transparent lg:px-8 lg:pt-16 lg:pb-10">
-        <div className="mx-auto flex max-w-2xl px-4 lg:w-full lg:max-w-lg lg:px-0">
+      <header className="relative grid grid-cols-2 mx-auto max-w-7xl bg-blue-950 py-6 gap-x-16 bg-transparent px-8 pt-16 pb-10">
+        <div className="mx-auto flex max-w-2xl px-4 w-full max-w-lg px-0">
           <a href="#">
             <Image
               alt="Payrails logo"
@@ -31,7 +31,7 @@ export default function Checkout() {
         </div>
       </header>
 
-      <main className="relative mx-auto grid max-w-7xl grid-cols-1 gap-x-16 lg:grid-cols-1 lg:px-8">
+      <main className="relative mx-auto grid max-w-7xl grid-cols-1 gap-x-16 grid-cols-1 px-8">
         <h1 className="sr-only">Checkout</h1>
 
         <PaymentAndShipping products={products} holderReference={holderReference} />
