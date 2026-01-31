@@ -8,20 +8,18 @@
 import React from 'react'
 
 interface PaymentButtonProps {
-  canPay: boolean
   mountRef: React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void)
 }
 
-export const PaymentButton: React.FC<PaymentButtonProps> = ({ canPay, mountRef }) => {
+export const PaymentButton: React.FC<PaymentButtonProps> = ({ mountRef }) => {
   return (
-    <div className="mt-10 flex justify-end border-t border-gray-200 pt-6">
+    <div className="mt-2 flex justify-end">
       {/* STEP 1e: Payment button container component */}
       <div
         id="payment-button-container"
         ref={mountRef}
-        aria-disabled={!canPay}
         className={
-          'w-full flex justify-end relative ' + (!canPay ? 'pointer-events-none opacity-50' : '')
+          'w-full flex justify-end relative '
         }
       >
         {/* Payrails payment button element will mount here */}

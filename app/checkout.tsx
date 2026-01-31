@@ -27,10 +27,10 @@ const holderReference = `holder-${Date.now()}`
 export default function Checkout() {
 
   return (
-    <div className="bg-white">
+    <div className="bg-gray-950">
       {/* Background color split screen for large screens */}
-      <div aria-hidden="true" className="fixed top-0 left-0 hidden h-full w-1/2 bg-white lg:block" />
-      <div aria-hidden="true" className="fixed top-0 right-0 hidden h-full w-1/2 bg-blue-950 lg:block" />
+      <div aria-hidden="true" className="fixed top-0 left-0 hidden h-full w-1/2 bg-gray-950 lg:block" />
+      <div aria-hidden="true" className="fixed top-0 right-0 hidden h-full w-1/2 bg-gray-950 lg:block" />
 
       <header className="relative mx-auto max-w-7xl bg-blue-950 py-6 lg:grid lg:grid-cols-2 lg:gap-x-16 lg:bg-transparent lg:px-8 lg:pt-16 lg:pb-10">
         <div className="mx-auto flex max-w-2xl px-4 lg:w-full lg:max-w-lg lg:px-0">

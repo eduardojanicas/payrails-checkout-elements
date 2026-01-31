@@ -23,7 +23,7 @@ export const CardPaymentContainer: React.FC<CardPaymentContainerProps> = ({ stat
     <div
       id="card-form-container"
       ref={mountRef}
-      className="rounded-md border border-gray-300 p-4"
+      className="rounded-md"
       aria-live="polite"
     >
       {/* STEP 1b: Card payment container component (renders only when selected) */}

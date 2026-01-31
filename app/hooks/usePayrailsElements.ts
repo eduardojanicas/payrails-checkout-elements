@@ -24,14 +24,7 @@ export interface UsePayrailsElementsOptions {
     workspaceId?: string    // Optional override (normally handled server-side)
     holderReference?: string // Merchant-side customer identifier
     enabled?: boolean       // Defer initialization until true (e.g. after user picks a method)
-    paymentMethod?: 'card' | 'paypal'
-    customerInfoProvider?: () => ({ // Called right before authorization to enrich metadata
-        email: string
-        address: string
-        city: string
-        region: string
-        postal: string
-    }) | null
+    paymentMethod?: 'card' | 'pix' | 'upi' // Used to conditionally mount elements
 }
 
 export type PayrailsElementsStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -43,6 +36,12 @@ interface UsePayrailsElementsReturn {
     mountCardFormRef: (node: HTMLDivElement | null) => void
     /** Attach to an empty div where the Payment Button should mount */
     mountPaymentButtonRef: (node: HTMLDivElement | null) => void
+    /** Attach to an empty div where the Apple Pay Button should mount */
+    mountApplePayButtonRef: (node: HTMLDivElement | null) => void
+    /** Attach to an empty div where the Google Pay Button should mount */
+    mountGooglePayButtonRef: (node: HTMLDivElement | null) => void
+    /** Attach to an empty div where the PayPal Button should mount */
+    mountPayPalButtonRef: (node: HTMLDivElement | null) => void
     /** Workflow execution identifier (best-effort extraction from init payload) */
     executionId: string | null
 }
@@ -51,7 +50,7 @@ interface UsePayrailsElementsReturn {
 const DEFAULT_WORKSPACE_ID = process.env.PAYRAILS_WORKSPACE_ID
 
 export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePayrailsElementsReturn {
-    const { amount, currency, workflowCode = 'payment-acceptance', workspaceId = DEFAULT_WORKSPACE_ID, holderReference = 'holder-abc', enabled = true, paymentMethod, customerInfoProvider } = options
+    const { amount, currency, workflowCode = 'payment-acceptance', workspaceId = DEFAULT_WORKSPACE_ID, holderReference = 'holder-abc', enabled = true, paymentMethod } = options
 
     const [status, setStatus] = useState<PayrailsElementsStatus>('idle')
     const [error, setError] = useState<string | null>(null)
@@ -62,14 +61,18 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     // DOM container refs where SDK elements will mount.
     const cardFormContainerRef = useRef<HTMLDivElement | null>(null)
     const paymentButtonContainerRef = useRef<HTMLDivElement | null>(null)
+    const applePayButtonContainerRef = useRef<HTMLDivElement | null>(null)
+    const googlePayButtonContainerRef = useRef<HTMLDivElement | null>(null)
+    const payPalButtonContainerRef = useRef<HTMLDivElement | null>(null)
 
     // Deterministic IDs allow mounting via CSS selector (simpler for examples).
     const CARD_FORM_ID = 'card-form-container'
     const PAYMENT_BUTTON_ID = 'payment-button-container'
+    const APPLE_PAY_BUTTON_ID = 'apple-pay-button-container'
+    const GOOGLE_PAY_BUTTON_ID = 'google-pay-button-container'
+    const PAYPAL_BUTTON_ID = 'paypal-button-container'
 
     const [executionId, setExecutionId] = useState<string | null>(null)
-    const customerInfoProviderRef = useRef<typeof customerInfoProvider | null>(null)
-    useEffect(() => { customerInfoProviderRef.current = customerInfoProvider }, [customerInfoProvider])
     const initializedRef = useRef<boolean>(false)
 
     const mountCardFormRef = useCallback((node: HTMLDivElement | null) => {
@@ -80,11 +83,26 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         paymentButtonContainerRef.current = node
     }, [])
 
+    const mountApplePayButtonRef = useCallback((node: HTMLDivElement | null) => {
+        applePayButtonContainerRef.current = node
+    }, [])
+
+    const mountGooglePayButtonRef = useCallback((node: HTMLDivElement | null) => {
+        googlePayButtonContainerRef.current = node
+    }, [])
+
+    const mountPayPalButtonRef = useCallback((node: HTMLDivElement | null) => {
+        payPalButtonContainerRef.current = node
+    }, [])
+
     // Helpers ---------------------------------------------------------------
 
     type PayrailsClient = {
         cardForm?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
         paymentButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+        applePayButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+        googlePayButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
+        paypalButton?: (cfg: Record<string, unknown>) => { mount: (sel: string | HTMLElement) => void }
     }
 
     // Stable merchant reference (initialized once). Use lazy initializer to avoid purity lint.
@@ -131,39 +149,234 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     const mountCardFormIfNeeded = useCallback((client: PayrailsClient) => {
         // STEP 3.3: Mount card form (only for card payment method)
         if (paymentMethod !== 'card' || !cardFormContainerRef.current || !client.cardForm) return
-        const cardForm = client.cardForm({ cards: { showCardHolderName: true } })
+        const cardForm = client.cardForm({
+            showSingleExpiryDateField: true,
+            // showPaymentMethodLogo: true,
+            showStoreInstrumentCheckbox: true,
+            styles: {
+                storeInstrumentCheckbox: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginTop: '8px',
+                    color: '#aaaaaa',
+                },
+                inputFields: {
+                    all: {
+                        base: {
+                            border: '1px solid black',
+                            borderRadius: '5px',
+                            margin: {
+                                top: 5, // jss-default-unit makes this 5px
+                                right: 5,
+                                bottom: 5,
+                                left: 5
+                            },
+                            backgroundColor: "#303030",
+                        },
+                        focus: {
+                            backgroundColor: "#040717",
+                            borderColor: "#1447e6",
+                            color: "white",
+                        },
+                        invalid: {
+                            backgroundColor: "#040717",
+                            borderColor: "#c10007",
+                            color: "white",
+                        },
+                        complete: {
+                            backgroundColor: "#040717",
+                            borderColor: "#008236",
+                            color: "white",
+                        }
+                    },
+                    CARD_NUMBER: {
+                        base: {
+                            maxWidth: "calc(100% - 0.5rem)",
+                        },
+                    },
+                    EXPIRATION_DATE: {
+                        base: {
+                            maxWidth: "calc(100% - 0.5rem)",
+                        },
+                        cardIcon: {
+                            display: 'none',
+                        },
+                    },
+                    CVV: {
+                        base: {
+                            maxWidth: "calc(100% - 0.5rem)",
+                        },
+                        cardIcon: {
+                            display: 'none',
+                        },
+                    },
+                },
+            },
+            translations: {
+                labels: {
+                    storeInstrument: "Save card for faster checkout",
+                },
+            },
+        })
         cardForm.mount(`#${CARD_FORM_ID}`)
+
+        // Make the "store instrument" checkbox look like a toggle.
+        // Limitation: Payrails applies `styles.storeInstrumentCheckbox` only to the wrapper element,
+        // so we inject a scoped <style> tag here to style the nested input/label.
+        setTimeout(() => {
+            const container = cardFormContainerRef.current
+            if (!container) return
+
+            const styleId = 'payrails-toggle-styles'
+            if (!container.querySelector(`#${styleId}`)) {
+                const styleEl = document.createElement('style')
+                styleEl.id = styleId
+                styleEl.textContent = `
+                #${CARD_FORM_ID} label.payrails-toggle {
+                    position: relative;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 12px;
+                    cursor: pointer;
+                    user-select: none;
+                    padding: 6px 0;
+                    font-size: 14px;
+                    line-height: 1.25;
+                    color: inherit;
+                }
+
+                #${CARD_FORM_ID} label.payrails-toggle > input.payrails-store-instrument-checkbox {
+                    position: absolute;
+                    opacity: 0;
+                    width: 1px;
+                    height: 1px;
+                    pointer-events: none;
+                }
+
+                #${CARD_FORM_ID} label.payrails-toggle::before {
+                    content: "";
+                    width: 40px;
+                    height: 22px;
+                    border-radius: 9999px;
+                    background: rgba(148, 163, 184, 0.35);
+                    box-sizing: border-box;
+                    transition: background-color 150ms ease, border-color 150ms ease;
+                    flex: none;
+                }
+
+                #${CARD_FORM_ID} label.payrails-toggle::after {
+                    content: "";
+                    position: absolute;
+                    left: 2px;
+                    top: 50%;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 9999px;
+                    background: #ffffff;
+                    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+                    transform: translate(0, -50%);
+                    transition: transform 150ms ease;
+                }
+
+                #${CARD_FORM_ID} label.payrails-toggle[data-checked="true"]::before {
+                    background: #1447e6;
+                    border-color: #1447e6;
+                }
+
+                #${CARD_FORM_ID} label.payrails-toggle[data-checked="true"]::after {
+                    transform: translate(18px, -50%);
+                }
+
+                `.trim()
+                container.appendChild(styleEl)
+            }
+
+            const input = container.querySelector('input.payrails-store-instrument-checkbox') as HTMLInputElement | null
+            const label = input?.closest('label') as HTMLLabelElement | null
+            if (!input || !label) return
+            if (label.dataset.toggleInitialized === 'true') return
+            label.dataset.toggleInitialized = 'true'
+
+            label.classList.add('payrails-toggle')
+            const sync = () => {
+                label.dataset.checked = input.checked ? 'true' : 'false'
+            }
+            sync()
+            input.addEventListener('change', sync)
+        }, 0)
     }, [paymentMethod])
 
-    const enrichBeforeAuthorize = useCallback(async () => {
-        // STEP 4: (Optional) Enrichment before authorization via lookup
-        const info = customerInfoProviderRef.current?.()
-        if (!info || !executionId) return true
-        try {
-            const resp = await fetch('/api/lookup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    workflowCode,
-                    executionId: executionId,
-                    customer: { email: info.email },
-                    amount: { value: amount, currency },
-                    order: { billingAddress: { street: info.address, city: info.city, state: info.region, postalCode: info.postal } },
-                }),
-            })
-            return resp.ok
-        } catch {
-            return false
-        }
-    }, [workflowCode, amount, currency, executionId])
+    const mountApplePayButton = useCallback((client: PayrailsClient) => {
+        // STEP 3.4a: Mount Apple Pay button for express checkout
+        // TODO: Add availability check using payrails.isApplePayAvailable() to conditionally render
+        if (!applePayButtonContainerRef.current || !client.applePayButton) return
+        const applePayButton = client.applePayButton({
+            style: 'black',
+            type: 'plain',
+            events: {
+                onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
+                onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
+            },
+        })
+        applePayButton.mount(`#${APPLE_PAY_BUTTON_ID}`)
+    }, [])
+
+    const mountGooglePayButton = useCallback((client: PayrailsClient) => {
+        // STEP 3.4b: Mount Google Pay button for express checkout
+        // TODO: Add availability check using payrails.isGooglePayAvailable() to conditionally render
+        if (!googlePayButtonContainerRef.current || !client.googlePayButton) return
+        const googlePayButton = client.googlePayButton({
+            environment: 'TEST',
+            styles: {
+                buttonType: 'plain',
+                buttonColor: 'white',
+            },
+            events: {
+                onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
+                onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
+            },
+        })
+        googlePayButton.mount(`#${GOOGLE_PAY_BUTTON_ID}`)
+    }, [])
+
+    const mountPayPalButton = useCallback((client: PayrailsClient) => {
+        // STEP 3.4c: Mount PayPal button for express checkout
+        // TODO: Add availability check using onPaypalAvailable event to conditionally render
+        if (!payPalButtonContainerRef.current || !client.paypalButton) return
+        const paypalButton = client.paypalButton({
+            styles: {
+                color: 'blue',
+                shape: 'rect',
+                label: 'paypal',
+            },
+            events: {
+                onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
+                onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
+            },
+        })
+        paypalButton.mount(`#${PAYPAL_BUTTON_ID}`)
+    }, [])
 
     const mountPaymentButton = useCallback((client: PayrailsClient) => {
-        // STEP 3.4: Mount payment button
+        // STEP 3.4d: Mount payment button
         if (!client.paymentButton) return
         const paymentButton = client.paymentButton({
+            styles: {
+                base: {
+                    width: 'full',
+                    backgroundColor: '#1447e6',
+                    color: '#fff',
+                    borderRadius: '24px',
+                    padding: '8px 24px',
+                },
+                disabled: {
+                    backgroundColor: '#1447e6',
+                    border: 'none',
+                    opacity: '0.5',
+                }
+            },
             translations: { label: 'Pay' },
             events: {
-                onPaymentButtonClicked: enrichBeforeAuthorize,
                 onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
                 onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
             },
@@ -176,7 +389,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                 (btn as HTMLButtonElement).className = 'w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50 focus:outline-hidden disabled:opacity-50 disabled:cursor-not-allowed'
             }
         }, 0)
-    }, [enrichBeforeAuthorize])
+    }, [])
 
     // STEP 3: Lazy initialize Payrails once a payment method is chosen and container exists
     useEffect(() => {
@@ -190,6 +403,9 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                 const raw = await fetchInitPayload()
                 const client = initSdk(raw)
                 mountCardFormIfNeeded(client)
+                mountApplePayButton(client)
+                mountGooglePayButton(client)
+                mountPayPalButton(client)
                 mountPaymentButton(client)
                 if (!cancelled) {
                     initializedRef.current = true
@@ -206,7 +422,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         return () => {
             cancelled = true
         }
-    }, [amount, currency, workflowCode, holderReference, workspaceId, enabled, paymentMethod, fetchInitPayload, initSdk, mountCardFormIfNeeded, mountPaymentButton])
+    }, [amount, currency, workflowCode, holderReference, workspaceId, enabled, paymentMethod, fetchInitPayload, initSdk, mountCardFormIfNeeded, mountApplePayButton, mountGooglePayButton, mountPayPalButton, mountPaymentButton])
 
-    return { status, error, mountCardFormRef, mountPaymentButtonRef, executionId }
+    return { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, executionId }
 }

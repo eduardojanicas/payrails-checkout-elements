@@ -11,10 +11,9 @@
  *
  * Omissions: robust validation, localization, tax/shipping calculations, accessibility polish.
  */
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 
-import EmailField from './EmailField'
-import AddressFields from './AddressFields'
+import ExpressCheckoutButtonContainer from './ExpressCheckoutButtonContainer'
 import PaymentDetails from './PaymentDetails'
 import PaymentButton from './PaymentButton'
 
@@ -28,23 +27,13 @@ interface PaymentAndShippingProps {
 }
 
 export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products, currency = 'USD', holderReference }) => {
-    // STEP 0: Collect basic customer + address fields (flat state for clarity)
-    const [form, setForm] = useState({
-        email: '',
-        address: '',
-        city: '',
-        region: '',
-        postal: ''
-    })
-
     // STEP 1: User selects a method (this flips `enabled` in the hook)
-    const [paymentMethod, setPaymentMethod] = useState<('card' | 'paypal')>('card')
+    const [paymentMethod, setPaymentMethod] = useState<('card' | 'pix' | 'upi')>('card')
     const paymentMethods = [
-        { id: 'pm-card', value: 'card' as const, title: 'Card' },
-        { id: 'pm-paypal', value: 'paypal' as const, title: 'PayPal' },
+        { id: 'pm-card', value: 'card' as const, title: 'Credit Card' },
+        { id: 'pm-pix', value: 'pix' as const, title: 'Pix' },
+        { id: 'pm-upi', value: 'upi' as const, title: 'UPI' },
     ]
-
-    const update = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }))
 
     // STEP 2: Derive subtotal from product list (demo parsing)
     const subtotal = useMemo(
@@ -56,32 +45,13 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
         [products]
     )
 
-    // Minimal validation: non-empty fields + crude email pattern (ensure boolean result)
-    const formValid = useMemo(() => {
-        const emailOk = /.+@.+/.test(form.email)
-        return !!(emailOk && form.address && form.city && form.region && form.postal)
-    }, [form])
-
-    // STEP 3 (indirect): Provide a lazy form snapshot so hook can enrich before authorization
-    const customerInfoProvider = useCallback(() => ({
-        email: form.email,
-        address: form.address,
-        city: form.city,
-        region: form.region,
-        postal: form.postal,
-    }), [form.email, form.address, form.city, form.region, form.postal])
-
-    const { status, error, mountCardFormRef, mountPaymentButtonRef } = usePayrailsElements({
+    const { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef } = usePayrailsElements({
         amount: subtotal,
         currency,
         holderReference,
         enabled: !!paymentMethod, // defer init until user selects method
-        paymentMethod: paymentMethod ?? undefined,
-        customerInfoProvider,
+        paymentMethod: paymentMethod ?? undefined
     })
-
-    // Enable payment only when SDK ready, form valid, and payment method chosen
-    const canPay: boolean = status === 'ready' && formValid && !!paymentMethod
 
     return (
         <section
@@ -93,7 +63,13 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
             </h2>
             <form>
                 <div className="mx-auto max-w-2xl px-4 lg:max-w-none lg:px-0">
-                    <EmailField value={form.email} onChange={(v) => update({ email: v })} />
+                    <ExpressCheckoutButtonContainer
+                        status={status}
+                        error={error}
+                        mountApplePayRef={mountApplePayButtonRef}
+                        mountGooglePayRef={mountGooglePayButtonRef}
+                        mountPayPalRef={mountPayPalButtonRef}
+                    />
 
                     <PaymentDetails
                         paymentMethods={paymentMethods}
@@ -104,12 +80,12 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
                         mountCardFormRef={mountCardFormRef}
                     />
 
-                    <AddressFields
+                    {/* <AddressFields
                         value={{ address: form.address, city: form.city, region: form.region, postal: form.postal }}
                         onChange={(patch) => update(patch)}
-                    />
+                    /> */}
 
-                    <PaymentButton canPay={canPay} mountRef={mountPaymentButtonRef} />
+                    <PaymentButton mountRef={mountPaymentButtonRef} />
                 </div>
             </form>
         </section>

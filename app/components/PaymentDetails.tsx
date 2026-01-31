@@ -31,10 +31,10 @@ export const PaymentDetails = <M extends string>({
   mountCardFormRef,
 }: PaymentDetailsProps<M>) => {
   return (
-    <div className="mt-10">
+    <div className="">
       {/* STEP 1: Payment details wrapper component */}
       <PaymentMethodSelector methods={paymentMethods} value={paymentMethod} onChange={onSelect} />
-      <div className="mt-6 space-y-4">
+      <div className="space-y-4">
         {paymentMethod === 'card' && (
           <CardPaymentContainer status={status} error={error} mountRef={mountCardFormRef} />
         )}
