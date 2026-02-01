@@ -1,24 +1,24 @@
 "use client"
 /**
- * CardPaymentContainer
+ * DropInContainer
  * ---------------------------------------------------------------------------
- * Wraps the Payrails card form element mount target. Stays mounted (hidden when
- * not selected) to avoid remount churn. Shows simple status messaging/spinners.
+ * Wraps the Payrails drop-in element mount target. Shows simple status
+ * messaging/spinners while the SDK initializes.
  */
 import React from 'react'
 import Spinner from './Spinner'
 
-export type CardContainerStatus = 'idle' | 'loading' | 'ready' | 'error'
+export type DropInContainerStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 type MountRef = React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void)
 
-interface CardPaymentContainerProps {
-  status: CardContainerStatus
+interface DropInContainerProps {
+  status: DropInContainerStatus
   error?: string | null
   mountRef: MountRef
 }
 
-export const CardPaymentContainer: React.FC<CardPaymentContainerProps> = ({ status, error, mountRef }) => {
+export const DropInContainer: React.FC<DropInContainerProps> = ({ status, error, mountRef }) => {
   return (
     <div
       id="drop-in-container"
@@ -36,4 +36,4 @@ export const CardPaymentContainer: React.FC<CardPaymentContainerProps> = ({ stat
   )
 }
 
-export default CardPaymentContainer
+export default DropInContainer

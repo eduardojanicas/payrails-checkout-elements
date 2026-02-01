@@ -157,6 +157,15 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                 fawryPay: { // hpp integration
                     showPaymentMethodLogo: true,
                 },
+                applePay: {
+                    showPaymentMethodLogo: true,
+                },
+                googlePay: {
+                    showPaymentMethodLogo: true,
+                },
+                payPal: {
+                    showPaymentMethodLogo: true,
+                },
             },
             styles: {
                 container: {
@@ -254,6 +263,20 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                         opacity: '0.5',
                     }
                 },
+                applePayButton: {
+                    style: 'white',
+                    type: 'plain',
+                },
+                googlePayButton: {
+                    buttonType: 'plain',
+                    buttonColor: 'white',
+                    buttonSizeMode: 'fill',
+                },
+                payPalButton: {
+                    color: 'blue',
+                    shape: 'rect',
+                    label: 'paypal',
+                }
             },
             translations: {
                 cardForm: {
@@ -267,6 +290,10 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                         label: 'Pay with Mercado Pago',
                     }
                 },
+            },
+            events: {
+                onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
+                onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
             },
         })
         dropin.mount(`#${DROP_IN_ID}`)

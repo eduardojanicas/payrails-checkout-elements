@@ -65,8 +65,18 @@ export async function POST(req: Request) {
     }
 
     // Build minimal payload including provided identifiers.
-    // Payrails expects type=dropIn plus additional context.
-    const initPayload: Record<string, unknown> = { type: 'dropIn' }
+    // Payrails expects type=dropIn plus additional context. 
+    const initPayload: Record<string, unknown> = { 
+        type: 'dropIn',
+        meta: {
+            customer: {
+                name: "John",
+                lastName: "Doe",
+                email: "john.doe@payrails.com",
+                reference: holderReference
+            },
+        }
+    }
 
     initPayload.amount = { value: String(amount), currency } // e.g. { value: "9995", currency: "USD" }
     // e.g. 23200 minor units or 232.00 - follow your account conventions

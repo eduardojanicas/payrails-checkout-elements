@@ -1,13 +1,11 @@
 <div align="center">
-  <h1>Payrails Elements – Getting Started Demo (Next.js)</h1>
-  <p>A minimal, step-by-step example showing how to initialize the Payrails Web SDK, mount a Card Form + Payment Button, enrich the workflow with customer info, and redirect on success/failure.</p>
+  <h1>Payrails SDK – Getting Started Demo (Next.js)</h1>
+  <p>A minimal, step-by-step example showing how to initialize the Payrails Web SDK, mount the drop-in component with multiple payment methods, and handle authorization redirects.</p>
 </div>
 
-> This repository is intentionally simplified for documentation & onboarding. It is NOT production ready. Each file highlights the core integration steps with inline `STEP` markers.
+> This repository is intentionally simplified for documentation & onboarding. It is NOT production ready.
 
 ## Quick Start
-![Checkout Demo Screenshot](./public/screenshot.png)
-
 Prerequisites: Node 18+, a Payrails workspace, and API credentials.
 
 1. Clone & install
@@ -27,25 +25,34 @@ Prerequisites: Node 18+, a Payrails workspace, and API credentials.
 	```bash
 	pnpm dev
 	```
-5. Open http://localhost:3000
+5. Open https://localhost:3000
+
+## Supported Payment Methods
+
+The drop-in component supports multiple payment methods (configured in your Payrails workspace):
+
+- **Cards** – Credit/debit card payments with optional "save card" functionality
+- **Apple Pay** – Native Apple Pay button (available in drop-in or standalone)
+- **Google Pay** – Native Google Pay button (available in drop-in or standalone)
+- **PayPal** – PayPal checkout button (available in drop-in or standalone)
+- **Mercado Pago** – HPP redirect integration
+- **Pix** – Brazilian instant payment (HPP redirect)
+- **Easypaisa** – Pakistani mobile wallet (HPP redirect)
+- **FawryPay** – Egyptian payment method (HPP redirect)
 
 ## Integration Flow Overview
 
 | Step | What Happens | Where |
 |------|--------------|-------|
-| 0 | Collect email + address inputs | `EmailField`, `AddressFields` (composed by `PaymentAndShipping`) |
 | 1 | Render payment UX wrapper | `PaymentDetails` |
-| 1a | Payment method selection (card / paypal) | `PaymentMethodSelector` (state lifted to `PaymentAndShipping`) |
-| 1b | Card form mount target appears | `CardPaymentContainer` |
-| 1c | PayPal placeholder (future element) | `PayPalPlaceholder` |
-| 1e | Payment button mount target appears | `PaymentButton` |
+| 1b | Drop-in mount target appears | `DropInContainer` |
+| 1c | Express checkout buttons mount targets appear | `ExpressCheckoutButtonContainer` |
 | 2 | Subtotal derivation & pass to hook | `PaymentAndShipping` |
 | 3.1 | Fetch init payload (OAuth + workflow init) | `app/api/init/route.ts` via `usePayrailsElements` |
 | 3.2 | Initialize SDK client | `usePayrailsElements` |
-| 3.3 | Mount card form (if method === card) | `usePayrailsElements` (targets `CardPaymentContainer`) |
-| 3.4 | Mount payment button | `usePayrailsElements` (targets `PaymentButton`) |
-| 4 | Pre-authorization enrichment (lookup) | `usePayrailsElements` / `app/api/lookup/route.ts` |
-| 5 | Authorization result → redirect | `usePayrailsElements` → success/failure pages |
+| 3.3 | Mount drop-in component | `usePayrailsElements` (targets `DropInContainer`) |
+| 3.4 | Mount express checkout buttons | `usePayrailsElements` (targets `ExpressCheckoutButtonContainer`) |
+| 4 | Authorization result → redirect | `usePayrailsElements` → success/failure pages |
 
 ## Environment Variables
 
@@ -60,90 +67,67 @@ Only variables prefixed with `NEXT_PUBLIC_` are bundled for the client. Restart 
 
 ## Files & Responsibilities
 
-- `app/hooks/usePayrailsElements.ts` – Core integration logic (init, mount, enrichment, redirects). STEP markers: `3`, `3.1–3.4`, `4`.
-- `app/components/PaymentAndShipping.tsx` – Orchestrates form state, subtotal, gating. STEP `0` (collection & enable conditions).
-- `app/components/EmailField.tsx` – Email input component. STEP `0a`.
-- `app/components/AddressFields.tsx` – Address inputs grid. STEP `0b`.
-- `app/components/PaymentDetails.tsx` – Wrapper for payment method UX. STEP `1`.
-- `app/components/PaymentMethodSelector.tsx` – Radio group for method selection. STEP `1a`.
-- `app/components/CardPaymentContainer.tsx` – Card form mount target & status UI. STEP `1b`.
-- `app/components/PayPalPlaceholder.tsx` – Placeholder for future PayPal element. STEP `1c`.
-- `app/components/PaymentButton.tsx` – Payment button mount container. STEP `1e`.
-- `app/components/OrderSummary.tsx` – Minimal subtotal display (demo only).
-- `app/api/init/route.ts` – Server-side OAuth + init; STEP `3`, `3.1`, `3.2`.
-- `app/api/lookup/route.ts` – Workflow enrichment; STEP `4`, `4.1`, `4.2`.
+- `app/hooks/usePayrailsElements.ts` – Core integration logic (init, mount drop-in & express buttons, redirects).
+- `app/components/PaymentAndShipping.tsx` – Orchestrates form state, subtotal, gating.
+- `app/components/PaymentDetails.tsx` – Wrapper for payment method UX.
+- `app/components/DropInContainer.tsx` – Drop-in component mount target & status UI.
+- `app/components/ExpressCheckoutButtonContainer.tsx` – Express checkout buttons (Apple Pay, Google Pay, PayPal) mount container.
+- `app/components/PaymentMethodSelector.tsx` – Payment method selection UI.
+- `app/api/init/route.ts` – Server-side OAuth + workflow init (returns SDK configuration).
 - `app/order/success/page.tsx` / `app/order/failure/page.tsx` – Simple redirect targets.
 
-## Inline Step Markers
-
-Markers (e.g. `// STEP 3.2`) align with the flow table for tutorial extraction.
-
-| Marker | Meaning |
-|--------|---------|
-| `0`, `0a`, `0b` | Collect & componentize customer inputs |
-| `1`, `1a`–`1e` | Payment method selection & mount targets |
-| `2` | Subtotal derivation (implicit) |
-| `3.1`–`3.4` | Init request, SDK init, card form mount, payment button mount |
-| `4` | Pre-authorization enrichment (lookup) |
-| `5` | Authorization outcome & redirect |
 
 ## `usePayrailsElements` Hook API
 
 ### Purpose
-Orchestrates Payrails workflow initialization, mounts the Card Form + Payment Button, performs optional enrichment, and handles authorization redirects.
+Orchestrates Payrails workflow initialization, mounts the drop-in component and express checkout buttons, and handles authorization redirects.
 
 ### Options
 
 | Option | Required | Type | Default | Description |
 |--------|----------|------|---------|-------------|
-| `amount` | Yes | `number` | — | In currency major unit. |
+| `amount` | Yes | `number` | — | Payment amount (major units, e.g., 99.95 for $99.95). |
 | `currency` | Yes | `string` | — | ISO 4217 currency code. |
 | `workflowCode` | No | `string` | `payment-acceptance` | Payrails workflow to execute. |
 | `workspaceId` | No | `string` | Env resolution | Override workspace id (usually rely on env). |
 | `holderReference` | No | `string` | `'holder-abc'` | Merchant customer identifier. |
-| `enabled` | No | `boolean` | `true` | Gating flag to defer initialization until ready. |
-| `paymentMethod` | No | `'card' | 'paypal'` | — | Selected method; drives conditional Card Form mount. |
-| `customerInfoProvider` | No | `() => { email; address; city; region; postal } | null` | — | Provides enrichment data just before authorization. |
 
-### Return Shape
+### Return Values
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `status` | `'idle' | 'loading' | 'ready' | 'error'` | Lifecycle state: pre-init, fetching/mounting, mounted, or failed. |
-| `error` | `string | null` | Error message when `status === 'error'`. |
-| `mountCardFormRef` | `(el: HTMLDivElement | null) => void` | Assign to empty `div` that should host the Card Form element. |
-| `mountPaymentButtonRef` | `(el: HTMLDivElement | null) => void` | Assign to empty `div` that should host the Payment Button element. |
-| `executionId` | `string | null` | Workflow execution identifier (set post-init via SDK event). |
+| Property | Type | Description |
+|----------|------|-------------|
+| `status` | `'idle' \| 'loading' \| 'ready' \| 'error'` | Current initialization status. |
+| `error` | `string \| null` | Error message if status is `'error'`. |
+| `mountDropInRef` | `(node: HTMLDivElement \| null) => void` | Ref callback for drop-in container. |
+| `mountApplePayButtonRef` | `(node: HTMLDivElement \| null) => void` | Ref callback for standalone Apple Pay button. |
+| `mountGooglePayButtonRef` | `(node: HTMLDivElement \| null) => void` | Ref callback for standalone Google Pay button. |
+| `mountPayPalButtonRef` | `(node: HTMLDivElement \| null) => void` | Ref callback for standalone PayPal button. |
+| `executionId` | `string \| null` | Workflow execution identifier. |
 
 ### Status Transition
-`idle` → (gated conditions satisfied) → `loading` → (`ready` on success | `error` on failure).
+`idle` → `loading` → (`ready` on success | `error` on failure).
 
 ### Minimal Usage Example
 ```tsx
-const { status, error, mountCardFormRef, mountPaymentButtonRef, executionId } = usePayrailsElements({
+const { status, error, mountDropInRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, executionId } = usePayrailsElements({
 	amount: 99.95,
-	currency: 'USD',
-	paymentMethod,
-	enabled: Boolean(paymentMethod),
-	customerInfoProvider: () => ({ email, address, city, region, postal })
+	currency: 'EUR'
 })
 
 return (
 	<div>
-		<div ref={mountCardFormRef} id="card-form-container" />
-		<div ref={mountPaymentButtonRef} id="payment-button-container" />
+		{/* Drop-in with all configured payment methods */}
+		<div ref={mountDropInRef} id="drop-in-container" />
+
+		{/* Or mount express checkout buttons separately */}
+		<div ref={mountApplePayButtonRef} id="apple-pay-button-container" />
+		<div ref={mountGooglePayButtonRef} id="google-pay-button-container" />
+		<div ref={mountPayPalButtonRef} id="paypal-button-container" />
+
 		{status === 'error' && <p className="text-red-600">{error}</p>}
 	</div>
 )
 ```
-
-## Enrichment (Lookup) Rationale
-The optional lookup call lets you attach metadata (customer email, billing address, amount) to the workflow *before* authorization. This is useful for:
-- Fraud/risk evaluation
-- Reporting / analytics
-- Downstream reconciliation
-
-If lookup fails the demo blocks authorization (returns `false`) to surface the issue during learning. In production you might log & proceed instead.
 
 ## Production Hardening Checklist (Not Implemented Here)
 
@@ -160,24 +144,6 @@ Generated client-side via timestamp for simplicity. In production:
 1. Generate the order reference server-side.
 2. Persist before payment initiation.
 3. Re-use consistently across authorization, capture, and reconciliation.
-
-## Troubleshooting FAQ
-
-| Issue | Likely Cause | Resolution |
-|-------|--------------|------------|
-| Payment Button never appears | `enabled` false or container not rendered | Ensure `paymentMethod` is selected and `enabled` prop passed as true before mount. Confirm `<div id="payment-button-container" ref={mountPaymentButtonRef} />` exists. |
-| Card Form not mounting | Missing `paymentMethod === 'card'` or wrong container id | Set payment method to `card` and include `<div id="card-form-container" ref={mountCardFormRef} />`. Ids must match those used by the hook. |
-| Status stuck at `loading` | Init request hanging or network issue | Check Network tab for `/api/init` POST. Verify env vars (`PAYRAILS_CLIENT_ID/SECRET` & workspace id) are correct. |
-| `Initialization failed` error | Non‑200 from `/api/init` | Inspect server logs / route implementation; validate credentials & workflow code. |
-| Lookup enrichment not called | `customerInfoProvider` returns null or `executionId` not set yet | Ensure provider returns an object and that authorization only proceeds after `status === 'ready'`. |
-| Wrong workspace used | Missing `NEXT_PUBLIC_PAYRAILS_WORKSPACE_ID` | Add it to `.env.local` or pass `workspaceId` override into hook options. |
-| Double initialization | Containers unmounted/remounted rapidly | Keep mount targets stable; hook guards with `initializedRef`, but rapid unmount may prevent detection. |
-| Styling missing on button | Tailwind classes applied post-mount timing | Inspect button after a short delay; adjust styling logic inside `setTimeout` if customizing. |
-
-Debug tips:
-- Add `console.log(status, executionId)` inside your component to trace lifecycle.
-- Use browser DevTools > Network to confirm `/api/init` (STEP 3.1) and `/api/lookup` (STEP 4) calls.
-- Temporarily remove enrichment (set `customerInfoProvider` to `null`) to isolate init vs enrichment failures.
 
 ## Scripts
 ```bash

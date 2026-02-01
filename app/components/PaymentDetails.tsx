@@ -6,12 +6,12 @@
  * focused unit for payment UI concerns.
  */
 import React from 'react'
-import CardPaymentContainer from './CardPaymentContainer'
+import DropInContainer from './DropInContainer'
 
-import type { CardContainerStatus } from './CardPaymentContainer'
+import type { DropInContainerStatus } from './DropInContainer'
 
 interface PaymentDetailsProps<M extends string> {
-  status: CardContainerStatus
+  status: DropInContainerStatus
   error: string | null
   mountDropInRef: React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void)
 }
@@ -23,7 +23,7 @@ export const PaymentDetails = <M extends string>({
 }: PaymentDetailsProps<M>) => {
   return (
     <div className="mt-2">
-      <CardPaymentContainer status={status} error={error} mountRef={mountDropInRef} />
+      <DropInContainer status={status} error={error} mountRef={mountDropInRef} />
     </div>
   )
 }
