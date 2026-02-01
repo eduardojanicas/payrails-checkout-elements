@@ -23,7 +23,7 @@ interface PaymentAndShippingProps {
     holderReference: string
 }
 
-export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products, currency = 'EUR', holderReference }) => {
+export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products, currency = 'BRL', holderReference }) => {
     // User selects a method (this flips `enabled` in the hook)
     const [paymentMethod, setPaymentMethod] = useState<('card' | 'pix' | 'upi')>('card')
     const paymentMethods = [
