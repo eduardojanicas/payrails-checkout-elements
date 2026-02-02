@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server'
+import https from 'https';
+
+export const runtime = 'nodejs'
 
 /**
  * /api/init (Tutorial Endpoint)
@@ -11,9 +14,18 @@ import { NextResponse } from 'next/server'
  */
 export async function POST(req: Request) {
     // (backend part A): Prepare environment + read credentials
-    const baseUrl = process.env.PAYRAILS_BASE_URL || 'https://api.payrails.com'
+    const baseUrl = process.env.PAYRAILS_API_URL || process.env.PAYRAILS_BASE_URL || 'https://api.payrails.com'
     const clientId = requiredEnv('PAYRAILS_CLIENT_ID')
     const clientSecret = requiredEnv('PAYRAILS_CLIENT_SECRET')
+    const client_cert_pem = requiredEnv('PAYRAILS_CLIENT_CERT_PEM')
+    const client_key_pem = requiredEnv('PAYRAILS_CLIENT_KEY_PEM')
+
+    // Single keep-alive mTLS agent
+    const agent = new https.Agent({
+        cert: normalizePem(client_cert_pem),
+        key: normalizePem(client_key_pem),
+        keepAlive: true,
+    });
 
     interface HolderInfo { id?: string; email?: string; name?: string }
     interface InitRequestBody {
@@ -79,32 +91,98 @@ export async function POST(req: Request) {
     initPayload.workspaceId = workspaceId || process.env.PAYRAILS_WORKSPACE_ID || 'missing-workspace-id'
 
     try {
-        // Step 1: OAuth token
-        const tokenRes = await fetch(`${baseUrl}/auth/token/${clientId}`, {
-            method: 'POST',
-            headers: { Accept: 'application/json', 'x-api-key': clientSecret },
-        })
-        if (!tokenRes.ok) return fail('Failed to fetch access token', 502, await tokenRes.text())
-        const { access_token } = await tokenRes.json() as { access_token: string }
+        // Step 1: OAuth token (mTLS)
+        const tokenJson = await postJson<{ access_token: string }>(
+            baseUrl,
+            `/auth/token/${encodeURIComponent(clientId)}`,
+            {},
+            {
+                Accept: 'application/json',
+                'x-api-key': clientSecret,
+            },
+            agent,
+        )
 
-        // Step 2: Display init
-        const initRes = await fetch(`${baseUrl}/merchant/client/init`, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${access_token}`,
+        if (!tokenJson?.access_token) return fail('Failed to fetch access token', 502, 'No access_token in response')
+
+        // Step 2: client init (mTLS)
+        const idempotencyKey = (globalThis.crypto?.randomUUID && globalThis.crypto.randomUUID()) || Math.random().toString(36).slice(2)
+        const config = await postJson<unknown>(
+            baseUrl,
+            '/merchant/client/init',
+            initPayload,
+            {
+                Authorization: `Bearer ${tokenJson.access_token}`,
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
-                'x-idempotency-key': crypto.randomUUID(),
+                'x-idempotency-key': idempotencyKey,
             },
-            body: JSON.stringify(initPayload),
-        })
-        if (!initRes.ok) return fail('Init request failed', 502, await initRes.text())
+            agent,
+        )
 
-        const config = await initRes.json()
         return NextResponse.json(config)
     } catch (err) {
         return fail('Server error', 500, (err as Error).message)
     }
+}
+
+function normalizePem(raw?: string) {
+    return (raw || '').replace(/\\n/g, '\n').trim()
+}
+
+function postJson<T>(
+    baseUrl: string,
+    path: string,
+    body: Record<string, unknown>,
+    headers: Record<string, string>,
+    agent: https.Agent,
+): Promise<T> {
+    const url = new URL(path, baseUrl)
+    if (url.protocol !== 'https:') {
+        return Promise.reject(new Error(`Unsupported protocol for mTLS request: ${url.protocol}`))
+    }
+
+    const payload = JSON.stringify(body)
+
+    return new Promise((resolve, reject) => {
+        const req = https.request(
+            {
+                method: 'POST',
+                hostname: url.hostname,
+                port: url.port ? Number(url.port) : undefined,
+                path: url.pathname + url.search,
+                headers: {
+                    'User-Agent': 'payrails-retail-demo/1.0',
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(payload).toString(),
+                    ...headers,
+                },
+                agent,
+            },
+            (res) => {
+                let data = ''
+                res.on('data', (chunk) => {
+                    data += chunk
+                })
+                res.on('end', () => {
+                    const status = res.statusCode || 0
+                    if (status >= 200 && status < 300) {
+                        try {
+                            resolve((data ? JSON.parse(data) : {}) as T)
+                        } catch (e) {
+                            reject(new Error('Failed JSON parse: ' + (e as Error).message))
+                        }
+                    } else {
+                        reject(new Error(`Status ${status}: ${data.slice(0, 800)}`))
+                    }
+                })
+            },
+        )
+
+        req.on('error', reject)
+        req.write(payload)
+        req.end()
+    })
 }
 
 function requiredEnv(name: string) {
