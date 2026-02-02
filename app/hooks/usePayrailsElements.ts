@@ -444,7 +444,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
             paymentMethod: {
                 paymentMethodCode: 'easypaisa',
             },
-            openInNewTab: true,
+            openInNewTab: false,
             styles: {
                 base: {
                     width: '100%',
