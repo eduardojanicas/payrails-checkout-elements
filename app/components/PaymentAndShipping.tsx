@@ -51,7 +51,7 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
     return (
         <section
             aria-labelledby="payment-and-shipping-heading"
-            className="bg-gray-950 rounded-2xl p-16 lg:col-start-1 lg:row-start-1 lg:mx-auto lg:w-full lg:max-w-lg lg:pt-0 lg:pb-24"
+            className="bg-gray-950 rounded-2xl p-16 lg:col-start-1 lg:row-start-1 lg:mx-auto lg:w-full lg:max-w-lg lg:pt-0 lg:pb-24 mb-16"
         >
             <h2 id="payment-and-shipping-heading" className="sr-only">
                 Payment and shipping details
