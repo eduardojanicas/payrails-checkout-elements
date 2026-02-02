@@ -25,11 +25,11 @@ interface PaymentAndShippingProps {
 
 export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products, currency = 'BRL', holderReference }) => {
     // User selects a method (this flips `enabled` in the hook)
-    const [paymentMethod, setPaymentMethod] = useState<('card' | 'pix' | 'upi')>('card')
+    const [paymentMethod, setPaymentMethod] = useState<('card' | 'pix' | 'easypaisa')>('card')
     const paymentMethods = [
         { id: 'pm-card', value: 'card' as const, title: 'Credit Card' },
         { id: 'pm-pix', value: 'pix' as const, title: 'Pix' },
-        { id: 'pm-upi', value: 'upi' as const, title: 'UPI' },
+        { id: 'pm-easypaisa', value: 'easypaisa' as const, title: 'Easypaisa' },
     ]
 
     // Derive subtotal from product list (demo parsing)
@@ -41,7 +41,7 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
         [products]
     )
 
-    const { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, mountPixButtonRef } = usePayrailsElements({
+    const { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, mountPixButtonRef, mountEasypaisaButtonRef } = usePayrailsElements({
         amount: subtotal,
         currency,
         holderReference,
@@ -56,7 +56,7 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
             <h2 id="payment-and-shipping-heading" className="sr-only">
                 Payment and shipping details
             </h2>
-            <form>
+            <form onSubmit={(e) => e.preventDefault()}>
                 <div className="mx-auto max-w-2xl px-4 lg:max-w-none lg:px-0">
                     <ExpressCheckoutButtonContainer
                         status={status}
@@ -72,9 +72,11 @@ export const PaymentAndShipping: React.FC<PaymentAndShippingProps> = ({ products
                         onSelect={(val) => setPaymentMethod(val)}
                         status={status}
                         pixStatus={status}
+                        easypaisaStatus={status}
                         error={error}
                         mountCardFormRef={mountCardFormRef}
                         mountPixButtonRef={mountPixButtonRef}
+                        mountEasypaisaButtonRef={mountEasypaisaButtonRef}
                     />
 
                     <div className={paymentMethod !== 'card' ? 'hidden' : ''}>

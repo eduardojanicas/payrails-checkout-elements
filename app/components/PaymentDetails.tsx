@@ -9,10 +9,11 @@ import React from 'react'
 import PaymentMethodSelector from './PaymentMethodSelector'
 import CardPaymentContainer from './CardPaymentContainer'
 import PixElement from './PixElement'
-import { Placeholder } from './Placeholder'
+import EasypaisaElement from './EasypaisaElement'
 
 import type { CardContainerStatus } from './CardPaymentContainer'
 import type { PixElementStatus } from './PixElement'
+import type { EasypaisaElementStatus } from './EasypaisaElement'
 import type { PaymentMethodOption } from './PaymentMethodSelector'
 
 interface PaymentDetailsProps<M extends string> {
@@ -21,9 +22,11 @@ interface PaymentDetailsProps<M extends string> {
   onSelect: (m: M) => void
   status: CardContainerStatus
   pixStatus: PixElementStatus
+  easypaisaStatus: EasypaisaElementStatus
   error: string | null
   mountCardFormRef: React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void)
   mountPixButtonRef: React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void)
+  mountEasypaisaButtonRef: React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void)
 }
 
 export const PaymentDetails = <M extends string>({
@@ -32,9 +35,11 @@ export const PaymentDetails = <M extends string>({
   onSelect,
   status,
   pixStatus,
+  easypaisaStatus,
   error,
   mountCardFormRef,
   mountPixButtonRef,
+  mountEasypaisaButtonRef,
 }: PaymentDetailsProps<M>) => {
   return (
     <div className="">
@@ -47,7 +52,9 @@ export const PaymentDetails = <M extends string>({
         <div className={paymentMethod !== 'pix' ? 'hidden' : ''}>
           <PixElement status={pixStatus} error={error} mountRef={mountPixButtonRef} />
         </div>
-        {paymentMethod === 'upi' && <Placeholder />}
+        <div className={paymentMethod !== 'easypaisa' ? 'hidden' : ''}>
+          <EasypaisaElement status={easypaisaStatus} error={error} mountRef={mountEasypaisaButtonRef} />
+        </div>
       </div>
     </div>
   )

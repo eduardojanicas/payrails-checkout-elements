@@ -47,11 +47,12 @@ const PixIcon = () => (
   </svg>
 )
 
-const UpiIcon = () => (
+const EasypaisaIcon = () => (
   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3 6.5L7.5 2L12 6.5L7.5 11L3 6.5Z" fill="#097939"/>
-    <path d="M12 17.5L16.5 13L21 17.5L16.5 22L12 17.5Z" fill="#ED752E"/>
-    <path d="M7.5 11L12 6.5L16.5 11L12 15.5L7.5 11Z" fill="#097939"/>
+    <circle cx="12" cy="12" r="10" fill="#00A651"/>
+    <path d="M8 12C8 9.79 9.79 8 12 8C14.21 8 16 9.79 16 12C16 14.21 14.21 16 12 16" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M12 16V18" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="12" cy="12" r="2" fill="white"/>
   </svg>
 )
 
@@ -59,7 +60,7 @@ export const PaymentMethodIcons: Record<string, React.FC> = {
   card: CardIcon,
   paypal: PayPalIcon,
   pix: PixIcon,
-  upi: UpiIcon,
+  easypaisa: EasypaisaIcon,
 }
 
 export const PaymentMethodSelector = <T extends string>({ methods, value, onChange }: PaymentMethodSelectorProps<T>) => {

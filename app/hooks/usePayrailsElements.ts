@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Payrails } from '@payrails/web-sdk'
+import { Payrails, PayrailsEnvironment } from '@payrails/web-sdk'
 
 export interface UsePayrailsElementsOptions {
     amount: number          // Minor units (e.g. 9995 == $99.95)
@@ -22,7 +22,7 @@ export interface UsePayrailsElementsOptions {
     workflowCode?: string   // Workflow to execute (default 'payment-acceptance')
     workspaceId?: string    // Optional override (normally handled server-side)
     holderReference?: string // Merchant-side customer identifier
-    paymentMethod?: 'card' | 'pix' | 'upi' // Used to conditionally mount elements
+    paymentMethod?: 'card' | 'pix' | 'easypaisa' // Used to conditionally mount elements
 }
 
 export type PayrailsElementsStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -42,6 +42,8 @@ interface UsePayrailsElementsReturn {
     mountPayPalButtonRef: (node: HTMLDivElement | null) => void
     /** Attach to an empty div where the Pix Button should mount */
     mountPixButtonRef: (node: HTMLDivElement | null) => void
+    /** Attach to an empty div where the Easypaisa Button should mount */
+    mountEasypaisaButtonRef: (node: HTMLDivElement | null) => void
     /** Workflow execution identifier (best-effort extraction from init payload) */
     executionId: string | null
 }
@@ -65,6 +67,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     const googlePayButtonContainerRef = useRef<HTMLDivElement | null>(null)
     const payPalButtonContainerRef = useRef<HTMLDivElement | null>(null)
     const pixButtonContainerRef = useRef<HTMLDivElement | null>(null)
+    const easypaisaButtonContainerRef = useRef<HTMLDivElement | null>(null)
 
     // Deterministic IDs allow mounting via CSS selector (simpler for examples).
     const CARD_FORM_ID = 'card-form-container'
@@ -73,6 +76,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     const GOOGLE_PAY_BUTTON_ID = 'google-pay-button-container'
     const PAYPAL_BUTTON_ID = 'paypal-button-container'
     const PIX_BUTTON_ID = 'pix-button-container'
+    const EASYPAISA_BUTTON_ID = 'easypaisa-button-container'
 
     const [executionId, setExecutionId] = useState<string | null>(null)
     const initializedRef = useRef<boolean>(false)
@@ -112,6 +116,10 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         pixButtonContainerRef.current = node
     }, [])
 
+    const mountEasypaisaButtonRef = useCallback((node: HTMLDivElement | null) => {
+        easypaisaButtonContainerRef.current = node
+    }, [])
+
     // Stable merchant reference (initialized once). Use lazy initializer to avoid purity lint.
     const merchantReferenceRef = useRef<string>('')
     // Use performance.now via effect to avoid render-time impurity complaints.
@@ -137,7 +145,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
     const initSdk = useCallback((raw: Parameters<typeof Payrails.init>[0]): PayrailsClient => {
         // Initialize SDK
         return Payrails.init(raw, {
-            redirectFor3DS: false,
+            environment: PayrailsEnvironment.TEST, // or "PRODUCTION"
             events: {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onClientInitialized: async (execution: any) => {
@@ -407,7 +415,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
             paymentMethod: {
                 paymentMethodCode: 'pix',
             },
-            openInNewTab: false,
+            openInNewTab: true,
             styles: {
                 base: {
                     width: '100%',
@@ -427,6 +435,35 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
             },
         })
         pixButton.mount(`#${PIX_BUTTON_ID}`)
+    }, [])
+
+    const mountEasypaisaButton = useCallback((client: PayrailsClient) => {
+        // Mount Easypaisa button using generic redirect element
+        if (!client.genericRedirectButton) return
+        const easypaisaButton = client.genericRedirectButton({
+            paymentMethod: {
+                paymentMethodCode: 'easypaisa',
+            },
+            openInNewTab: true,
+            styles: {
+                base: {
+                    width: '100%',
+                    backgroundColor: '#1447e6',
+                    color: '#fff',
+                    borderRadius: '24px',
+                    padding: '8px 24px',
+                    fontSize: '14px',
+                },
+            },
+            translations: {
+                label: 'Pay with Easypaisa',
+            },
+            events: {
+                onAuthorizeSuccess: () => routerRef.current.push(`/order/success?ref=${merchantReferenceRef.current}`),
+                onAuthorizeFailed: () => routerRef.current.push(`/order/failure?ref=${merchantReferenceRef.current}&reason=authorization_failed`),
+            },
+        })
+        easypaisaButton.mount(`#${EASYPAISA_BUTTON_ID}`)
     }, [])
 
     // Inject CSS custom properties for button heights
@@ -466,6 +503,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
                 mountPayPalButton(client)
                 mountPaymentButton(client)
                 mountPixButton(client)
+                mountEasypaisaButton(client)
                 if (!cancelled) {
                     initializedRef.current = true
                     setStatus('ready')
@@ -481,7 +519,7 @@ export function usePayrailsElements(options: UsePayrailsElementsOptions): UsePay
         return () => {
             cancelled = true
         }
-    }, [amount, currency, workflowCode, holderReference, workspaceId, paymentMethod, fetchInitPayload, initSdk, mountCardFormIfNeeded, mountApplePayButton, mountGooglePayButton, mountPayPalButton, mountPaymentButton, mountPixButton])
+    }, [amount, currency, workflowCode, holderReference, workspaceId, paymentMethod, fetchInitPayload, initSdk, mountCardFormIfNeeded, mountApplePayButton, mountGooglePayButton, mountPayPalButton, mountPaymentButton, mountPixButton, mountEasypaisaButton])
 
-    return { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, mountPixButtonRef, executionId }
+    return { status, error, mountCardFormRef, mountPaymentButtonRef, mountApplePayButtonRef, mountGooglePayButtonRef, mountPayPalButtonRef, mountPixButtonRef, mountEasypaisaButtonRef, executionId }
 }
